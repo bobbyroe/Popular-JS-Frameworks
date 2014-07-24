@@ -8,7 +8,7 @@ tag_count_domain =
     max: 0
 
 
-svg = d3.select("body").append("svg")
+svg = d3.select(".panel").append("svg")
     .attr("width", width)
     .attr("height", height)
 
@@ -86,4 +86,31 @@ d3.csv "js_libs.csv", (error, data) ->
     )
     force.start()
 
+#
 
+d = document
+panel = d.querySelector '.panel'
+info_panel = d.querySelector '#info'
+showInfoPanel = ->
+    panel.classList.add 'scooched_right'
+    info_panel.classList.add 'open'
+    is_highlighing_points = false
+
+hideInfoPanel = ->
+    panel.classList.remove 'scooched_right'
+    info_panel.classList.remove 'open'
+    is_highlighing_points = true
+
+toggleInfoPanel = ->
+    if info_panel.classList.contains 'open'
+        hideInfoPanel()
+    else 
+        showInfoPanel()
+
+clicked = (evt) ->
+    if evt.target.id is 'nub'
+        toggleInfoPanel()
+    if evt.target.id is ''
+        hideInfoPanel()
+
+d.addEventListener 'click', clicked
