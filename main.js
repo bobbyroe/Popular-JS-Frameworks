@@ -8,7 +8,8 @@ var tag_count_domain = {
     min: 1000000,
     max: 0
 };
-var svg = d3.select(".panel").append("svg").attr("width", width).attr("height", height);
+var svg = d3.select(".panel").append("svg")
+    .attr("width", width).attr("height", height);
 
 d3.csv("js_libs.csv", function(error, data) {
     var gs, i, index, item, lib;
@@ -33,6 +34,7 @@ d3.csv("js_libs.csv", function(error, data) {
     });
 
     libraries = libraries.filter( function (d) {
+        log(d.tag);
         return d.count > min_count_threshold;
     });
 
@@ -41,15 +43,20 @@ d3.csv("js_libs.csv", function(error, data) {
         tag_count_domain.min = Math.min(tag_count_domain.min, lib.count);
         tag_count_domain.max = Math.max(tag_count_domain.max, lib.count);
     }
-    var radius_scale = d3.scale.linear().domain([tag_count_domain.min, tag_count_domain.max]).range([2.5, 250]);
-    var hue = d3.scale.linear().domain([tag_count_domain.min, tag_count_domain.max]).range([270, 0]);
+    var radius_scale = d3.scale.linear()
+        .domain([tag_count_domain.min, tag_count_domain.max])
+        .range([2.5, 250]);
+    var hue = d3.scale.linear()
+        .domain([tag_count_domain.min, tag_count_domain.max])
+        .range([270, 0]);
     var force = d3.layout.force()
         .nodes(libraries).links([])
         .charge(function(d) { return radius_scale(d.count) * -25; })
         .linkDistance(0).size([width, height]);
 
     // add the circles!
-    var gs = svg.selectAll('g').data(libraries).enter().append('g').call(force.drag);
+    var gs = svg.selectAll('g')
+        .data(libraries).enter().append('g').call(force.drag);
     
     var circle = gs.append('circle')
         .attr('r', function (d) { return radius_scale(d.count); })
