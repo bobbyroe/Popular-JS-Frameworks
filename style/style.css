@@ -26,13 +26,19 @@ body {
   right: 10px;
   color: #e0e0e0; }
 
-#title {
+#title, #date {
   position: absolute;
   bottom: 10px;
   left: 10px;
   font-weight: bold;
   font-size: 48px;
   color: rgba(255, 255, 255, 0.2); }
+#date {
+  bottom: inherit;
+  top: 10px;
+  left: 75px;
+  cursor: pointer;
+}
 
 a {
   color: #0099ff;
