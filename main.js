@@ -3,22 +3,40 @@ var log = console.log.bind(console);
 var width = window.innerWidth;
 var height = window.innerHeight;
 var radius = Math.min(width, height) / 2;
-var min_count_threshold = 100;
 var tag_count_domain = {
     min: 1000000,
     max: 0
 };
-var current_month = '';
 var libraries = [];
-var available_dates = [];
-var date = '2014-01';
+var dates = (function () {
+    var date_inc = 0;
+    var available = [];
+    var current = '';
+    function decrement () {
+        date_inc += 1;
+        if (date_inc >= available.length) date_inc = 0;
+        current = available[date_inc];
+    }
+
+    function increment () {
+        date_inc -= 1;
+        if (date_inc < 0) date_inc = available.length - 1;
+        current = available[date_inc];
+    }
+    return {
+        get current () { return current; },
+        set current (val) { current = val; return val; },
+        available: available,
+        decrement: decrement,
+        increment: increment
+    };
+})();
 
 var svg = d3.select(".panel").append("svg")
     .attr("width", width).attr("height", height);
 
-d3.csv("js_libs.csv", function(error, data) {
+d3.csv("js_libs.csv", function (error, data) {
     var tags = [];
-
     // stoke unique tags (library names)
     data.forEach( function (item, i) {
         if (tags.indexOf(item.TagName) === -1) {
@@ -33,18 +51,19 @@ d3.csv("js_libs.csv", function(error, data) {
 
     // stoke unique dates
     data.forEach( function (item) {
-        if (available_dates.indexOf(item.RoundToMonth) === -1) {
-            available_dates.push(item.RoundToMonth);
+        if (dates.available.indexOf(item.RoundToMonth) === -1) {
+            dates.available.push(item.RoundToMonth);
         }
 
         // stoke date + data
         var index = tags.indexOf(item.TagName);
-        lib = libraries[index];
+        var lib = libraries[index];
         lib.data[item.RoundToMonth] = +item.TagCount;
     });
     
     // set the displayed date
-    d.querySelector('#date').textContent = date;
+    var date = dates.current = dates.available[dates.available.length - 1];
+    doc.querySelector('#date').textContent = date;
 
     libraries.forEach( function (lib) {
         tag_count_domain.min = Math.min(tag_count_domain.min, lib.data[date]);
@@ -98,8 +117,9 @@ d3.csv("js_libs.csv", function(error, data) {
 
 function update () {
 
+    var date = dates.current;
     // set the displayed date
-    d.querySelector('#date').textContent = date;
+    doc.querySelector('#date').textContent = date;
 
     libraries.forEach( function (lib) {
         tag_count_domain.min = Math.min(tag_count_domain.min, lib.data[date]);
@@ -142,9 +162,9 @@ function update () {
     force.start();
 }
 
-var d = document;
-var panel = d.querySelector('.panel');
-var info_panel = d.querySelector('#info');
+var doc = document;
+var panel = doc.querySelector('.panel');
+var info_panel = doc.querySelector('#info');
 
 function showInfoPanel () {
     var is_highlighing_points;
@@ -168,20 +188,26 @@ function toggleInfoPanel () {
     }
 }
 
-function randomizeDate () {
-    var i = Math.floor(Math.random() * available_dates.length);
-    date = available_dates[i];
-    update();
-}
-
 function clicked (evt) {
     if (evt.target.id === 'nub') {
         toggleInfoPanel();
     }
     if (evt.target.id === 'date') {
         hideInfoPanel();
-        randomizeDate();
+        incrementDate();
     }
 }
 
-d.addEventListener('click', clicked);
+function keydowned (evt) {
+    if (evt.keyCode === 37) { // left arrow
+        dates.decrement();
+        update();
+    }
+    if (evt.keyCode === 39) { // right arrow
+        dates.increment();
+        update();
+    }
+}
+
+doc.addEventListener('click', clicked);
+doc.addEventListener('keydown', keydowned);
