@@ -138,8 +138,8 @@
     }
 
     // UPDATE
-    function update () {
-
+    function update (opts) {
+        if (opts == null) opts = {};
         var date = dates.current;
         // set the displayed date
         var date_div = doc.querySelector('#date');
@@ -195,10 +195,23 @@
 
         svg.selectAll("g").select("g").call(force.drag);
 
+        var nudge_left = opts.nudge === 'left';
+        var nudge_right = opts.nudge === 'right';
+        var nudge_scale = d3.scale.linear()
+            .domain([tag_count_domain.min, tag_count_domain.max])
+            .range([20.0, 0.0]);
         force.on("tick", function() {
-            svg.selectAll('g').attr("transform", function (d) { 
-                return "translate(" + d.x + "," + d.y + ")";
+            svg.selectAll('g').attr("transform", function (d) {
+                if (nudge_left === true) {
+                    d.x -= nudge_scale(d.data[date]);
+                }
+                if (nudge_right === true) {
+                    d.x += nudge_scale(d.data[date]);
+                }
+                return  "translate(" + d.x + "," + d.y + ")";
             });
+            nudge_left = false;
+            nudge_right = false;
         });
         force.start();
     }
@@ -225,8 +238,10 @@
     function toggleInfoPanel () {
         if (info_panel.classList.contains('open')) {
             hideInfoPanel();
+            update({nudge: 'right'});
         } else {
             showInfoPanel();
+            update({nudge: 'left'})
         }
     }
 
@@ -239,7 +254,7 @@
             toggleInfoPanel();
         }
         if (evt.target.id === '') {
-            hideInfoPanel();
+            hideInfoPanel({nudge: 'right'});
         }
     }
 
@@ -252,11 +267,25 @@
             dates.increment();
             update();
         }
+        if (evt.keyCode === 90) { // 'z'
+            if (evt.shiftKey === true) {
+                update({nudge: 'right'});
+            } else {
+                update({nudge: 'left'});
+            }
+            
+        }
     }
 
-    function onSwipeLeft (evt) { dates.decrement(); update(); }
-    function onSwipeRight (evt) { dates.increment(); update(); }
-    function onTouchStart (evt) { evt.preventDefault(); } // no native scrolling
+    function onSwipeLeft (evt) {
+        if (evt.target.tagName === 'circle') return; // ignore draged circles
+        dates.decrement(); update(); 
+    }
+    function onSwipeRight (evt) {
+        if (evt.target.tagName === 'circle') return; // ignore draged circles
+        dates.increment(); update(); }
+    function onTouchStart (evt) { evt.preventDefault(); 
+    } // no native scrolling
     function onTouchMove (evt) { evt.preventDefault(); }
     function onTouchEnd (evt) { evt.preventDefault(); }
 
