@@ -5,7 +5,6 @@
     var log = console.log.bind(console);
     var width = window.innerWidth;
     var height = window.innerHeight;
-    var radius = Math.min(width, height) / 2;
     var tag_count_domain = {
         min: 1000000,
         max: 0
@@ -16,6 +15,7 @@
         var date_inc = 0;
         var available = [];
         var current = '';
+        var prior = '';
         var readable = '';
         var months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July',
             'August', 'September', 'October', 'November', 'December'];
@@ -25,6 +25,8 @@
             current = available[date_inc];
             readable = months[+current.substring(5, 7)] +
                 ' ' + current.substring(0, 4);
+            prior = (date_inc === available.length - 1) ? available[available.length - 1] :
+                available[date_inc + 1];
         }
 
         function increment () {
@@ -33,30 +35,34 @@
             current = available[date_inc];
             readable = months[+current.substring(5, 7)] +
                 ' ' + current.substring(0, 4);
+            prior = (date_inc === available.length - 1) ? available[available.length - 1] :
+                available[date_inc + 1];
         }
         return {
             get current () { return current; },
             set current (val) { current = val; return val; },
             get readable () { return readable; },
             get inc () { return date_inc; },
+            get prior () { return prior; },
             available: available,
             decrement: decrement,
             increment: increment
         };
     })();
+    window.dates = dates;
 
     var svg = d3.select(".panel").append("svg")
         .attr("width", width).attr("height", height);
 
     function init (error, data) {
         var tags = [];
+
         // stoke unique tags (library names)
-        data.forEach( function (item, i) {
+        data.forEach( function (item) {
             if (tags.indexOf(item.TagName) === -1) {
                 tags.push(item.TagName);
                 libraries.push({
                     tag: item.TagName,
-                    index: i,
                     data: {}
                 });
             }
@@ -72,6 +78,10 @@
             var index = tags.indexOf(item.TagName);
             var lib = libraries[index];
             lib.data[item.RoundToMonth] = +item.TagCount;
+
+            // set min and max
+            tag_count_domain.min = Math.min(tag_count_domain.min, +item.TagCount);
+            tag_count_domain.max = Math.max(tag_count_domain.max, +item.TagCount);
         });
         
         // set the displayed date
@@ -81,11 +91,6 @@
         var date_div = doc.querySelector('#date');
         date_div.textContent = dates.readable;
         date_div.style.marginLeft = 0;
-
-        libraries.forEach( function (lib) {
-            tag_count_domain.min = Math.min(tag_count_domain.min, lib.data[date]);
-            tag_count_domain.max = Math.max(tag_count_domain.max, lib.data[date]);
-        });
 
         var radius_scale = d3.scale.linear()
             .domain([tag_count_domain.min, tag_count_domain.max])
@@ -132,6 +137,7 @@
         force.start();
     }
 
+    // UPDATE
     function update () {
 
         var date = dates.current;
@@ -141,17 +147,23 @@
         date_div.style.marginLeft = (dates.available.length - dates.inc) *
             left_offset_bit + 'px';
 
+        var count_diff_domain = {
+            min: 1000000,
+            max: 0
+        };
         libraries.forEach( function (lib) {
-            tag_count_domain.min = Math.min(tag_count_domain.min, lib.data[date]);
-            tag_count_domain.max = Math.max(tag_count_domain.max, lib.data[date]);
+            var diff = lib.data[dates.current] - lib.data[dates.prior];
+            // set min and max
+            count_diff_domain.min = Math.min(count_diff_domain.min, diff);
+            count_diff_domain.max = Math.max(count_diff_domain.max, diff);
         });
 
         var radius_scale = d3.scale.linear()
             .domain([tag_count_domain.min, tag_count_domain.max])
             .range([2.5, 250]);
         var hue = d3.scale.linear()
-            .domain([tag_count_domain.min, tag_count_domain.max])
-            .range([270, 0]);
+            .domain([count_diff_domain.min, count_diff_domain.max])
+            .range([0, 180]);
         var force = d3.layout.force()
             .nodes(libraries).links([])
             .charge(function(d) { 
@@ -166,11 +178,20 @@
         .select('circle')
             .delay(function(d, i) { return i * 10; })
             .attr('r', function (d) { return radius_scale(d.data[date]); })
-            .attr("fill", function (d) { return d3.hsl(hue(d.data[date]), 1.0, 0.3); })
-            .attr("stroke", function (d) { return d3.hsl(hue(d.data[date]), 1.0, 0.6); });
+            .attr("fill", function (d) { 
+                var diff = d.data[dates.current] - d.data[dates.prior]; 
+                return d3.hsl(hue(diff), 1.0, 0.3); 
+            })
+            .attr("stroke", function (d) {
+                var diff = d.data[dates.current] - d.data[dates.prior]; 
+                return d3.hsl(hue(diff), 1.0, 0.6); 
+            });
 
         svg.selectAll("g").select('.count-text')
-            .text(function (d, i) { return " (" + d.data[date] + ")"; });
+            .text(function (d, i) {
+                var diff = d.data[dates.current] - d.data[dates.prior]; 
+                return " (" + d.data[dates.current] + ")"; 
+            });
 
         svg.selectAll("g").select("g").call(force.drag);
 
